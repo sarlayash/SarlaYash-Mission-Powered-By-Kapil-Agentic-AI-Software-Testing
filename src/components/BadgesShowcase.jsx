@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { BADGES_DATA } from '../data/badgesData';
 import { 
@@ -17,8 +17,14 @@ import {
   Radio, 
   PlayCircle, 
   BarChart3, 
-  GitBranch 
+  GitBranch,
+  Download,
+  FileImage,
+  FileText,
+  Check
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 const ICON_MAP = {
   ShieldCheck,
@@ -38,6 +44,10 @@ const ICON_MAP = {
 export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
   const { progress, user } = useApp();
   const [filter, setFilter] = useState('all');
+  const [downloadingBadgeId, setDownloadingBadgeId] = useState(null);
+  const [downloadType, setDownloadType] = useState("");
+  const badgeCardRef = useRef(null);
+  const [selectedBadgeToExport, setSelectedBadgeToExport] = useState(null);
 
   const unlockedSet = new Set(progress.unlockedBadgeIds);
   const totalBadges = BADGES_DATA.length;
@@ -49,6 +59,118 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
     if (filter === 'locked') return !isUnlocked;
     return true;
   });
+
+  // Download Individual Badge as PNG
+  const handleDownloadBadgePNG = async (badge) => {
+    setSelectedBadgeToExport(badge);
+    setDownloadingBadgeId(badge.id);
+    setDownloadType("PNG");
+
+    setTimeout(async () => {
+      try {
+        if (!badgeCardRef.current) return;
+        const canvas = await html2canvas(badgeCardRef.current, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false
+        });
+        const link = document.createElement('a');
+        link.download = `SarlaYash_Badge_${badge.name.replace(/\s+/g, '_')}_${(user.name || 'Scholar').replace(/\s+/g, '_')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (err) {
+        console.error("Badge PNG download error:", err);
+      } finally {
+        setDownloadingBadgeId(null);
+        setDownloadType("");
+      }
+    }, 150);
+  };
+
+  // Download Individual Badge as PDF
+  const handleDownloadBadgePDF = async (badge) => {
+    setSelectedBadgeToExport(badge);
+    setDownloadingBadgeId(badge.id);
+    setDownloadType("PDF");
+
+    setTimeout(async () => {
+      try {
+        if (!badgeCardRef.current) return;
+        const canvas = await html2canvas(badgeCardRef.current, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false
+        });
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'pt',
+          format: [canvas.width, canvas.height]
+        });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save(`SarlaYash_Badge_${badge.name.replace(/\s+/g, '_')}_${(user.name || 'Scholar').replace(/\s+/g, '_')}.pdf`);
+      } catch (err) {
+        console.error("Badge PDF download error:", err);
+      } finally {
+        setDownloadingBadgeId(null);
+        setDownloadType("");
+      }
+    }, 150);
+  };
+
+  // Download All Unlocked Badges as a Portfolio PDF
+  const handleDownloadPortfolioPDF = async () => {
+    const unlockedBadges = BADGES_DATA.filter(b => unlockedSet.has(b.id));
+    if (unlockedBadges.length === 0) {
+      alert("Complete modules or assessments first to unlock badges before exporting your portfolio!");
+      return;
+    }
+
+    setDownloadingBadgeId("ALL");
+    setDownloadType("PORTFOLIO");
+
+    try {
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4'
+      });
+
+      for (let i = 0; i < unlockedBadges.length; i++) {
+        setSelectedBadgeToExport(unlockedBadges[i]);
+        // Wait for render
+        await new Promise(res => setTimeout(res, 200));
+
+        if (badgeCardRef.current) {
+          const canvas = await html2canvas(badgeCardRef.current, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false
+          });
+          const imgData = canvas.toDataURL('image/png');
+
+          if (i > 0) pdf.addPage();
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const margin = 30;
+          const imgWidth = pageWidth - (margin * 2);
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          pdf.addImage(imgData, 'PNG', margin, (pageHeight - imgHeight) / 2, imgWidth, imgHeight);
+        }
+      }
+
+      pdf.save(`SarlaYash_Badges_Portfolio_${(user.name || 'Scholar').replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      console.error("Portfolio PDF generation error:", err);
+    } finally {
+      setDownloadingBadgeId(null);
+      setDownloadType("");
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
@@ -64,24 +186,37 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
             Quality Badges & Milestones
           </h1>
           <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-            Every badge in the SarlaYash Mission represents verified enterprise STLC competency: from SRS decomposition and automated RTM engineering to multi-agent defect triaging and capstone certification.
+            Every badge in the SarlaYash Mission represents verified enterprise STLC competency. You can download any earned badge individually as a <strong>PNG</strong> or <strong>PDF</strong>, or download your entire credentials portfolio!
           </p>
         </div>
 
-        {/* Progress Card */}
-        <div className="flex items-center gap-4 bg-white border border-slate-200 p-4 rounded-2xl shadow-xs shrink-0">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-300 flex items-center justify-center text-slate-950 font-black text-xl shadow-xs">
-            {unlockedCount}/{totalBadges}
-          </div>
-          <div>
-            <div className="text-sm font-black text-slate-900">Badges Unlocked</div>
-            <div className="text-xs text-amber-700 font-mono font-bold">
-              {Math.round((unlockedCount / totalBadges) * 100)}% Milestone Progress
+        {/* Badges Counter & Portfolio CTA */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 bg-white border border-slate-200 p-4 rounded-2xl shadow-xs shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-300 flex items-center justify-center text-slate-950 font-black text-xl shadow-xs shrink-0">
+              {unlockedCount}/{totalBadges}
             </div>
-            <div className="text-[11px] text-slate-500 mt-0.5">
-              Candidate: <strong className="text-slate-800">{user.name || "Guest Scholar"}</strong>
+            <div>
+              <div className="text-sm font-black text-slate-900">Badges Unlocked</div>
+              <div className="text-xs text-amber-700 font-mono font-bold">
+                {Math.round((unlockedCount / totalBadges) * 100)}% Milestone Progress
+              </div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                Candidate: <strong className="text-slate-800">{user.name || "Guest Scholar"}</strong>
+              </div>
             </div>
           </div>
+
+          {unlockedCount > 0 && (
+            <button
+              onClick={handleDownloadPortfolioPDF}
+              disabled={downloadingBadgeId === 'ALL'}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold text-xs shadow-md shadow-blue-600/20 flex items-center justify-center gap-2 transition whitespace-nowrap"
+            >
+              <Download className="w-4 h-4" />
+              <span>{downloadingBadgeId === 'ALL' ? "Compiling Portfolio..." : "Download Badges Portfolio (PDF)"}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -120,10 +255,11 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
       </div>
 
       {/* Badges Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredBadges.map((badge) => {
           const isUnlocked = unlockedSet.has(badge.id);
           const IconComp = ICON_MAP[badge.icon] || Award;
+          const isThisDownloading = downloadingBadgeId === badge.id;
 
           return (
             <div
@@ -170,13 +306,36 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-100">
+              {/* Action & Download Section */}
+              <div className="pt-3 border-t border-slate-100 space-y-3">
                 <div className="text-[11px] text-slate-500">
                   <strong className="text-slate-700">Requirement:</strong> {badge.requirement}
                 </div>
 
-                {!isUnlocked && (
-                  <div className="mt-3">
+                {isUnlocked ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    {/* Download PNG Button */}
+                    <button
+                      onClick={() => handleDownloadBadgePNG(badge)}
+                      disabled={isThisDownloading}
+                      className="flex-1 py-1.5 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-200 flex items-center justify-center gap-1.5 transition"
+                    >
+                      <FileImage className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{isThisDownloading && downloadType === 'PNG' ? "Saving..." : "PNG"}</span>
+                    </button>
+
+                    {/* Download PDF Button */}
+                    <button
+                      onClick={() => handleDownloadBadgePDF(badge)}
+                      disabled={isThisDownloading}
+                      className="flex-1 py-1.5 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 text-[11px] font-bold border border-blue-200 flex items-center justify-center gap-1.5 transition"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{isThisDownloading && downloadType === 'PDF' ? "Saving..." : "PDF"}</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-2">
                     {badge.id === 'badge_certified_lead' ? (
                       <button
                         onClick={onOpenFinalExam}
@@ -199,6 +358,71 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
             </div>
           );
         })}
+      </div>
+
+      {/* HIDDEN OFF-SCREEN RENDERER FOR BADGE PNG/PDF EXPORT (Zero Overlapping, Crisp High-Res) */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+        {selectedBadgeToExport && (
+          <div
+            ref={badgeCardRef}
+            className="w-[520px] bg-white text-slate-900 p-8 rounded-3xl border-4 border-slate-200 shadow-2xl relative overflow-hidden"
+            style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}
+          >
+            {/* Inner Border */}
+            <div className="absolute inset-2 border-2 border-blue-600/30 rounded-2xl pointer-events-none" />
+
+            {/* Header */}
+            <div className="text-center space-y-1 mb-6">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-800 text-[10px] font-black uppercase tracking-widest">
+                <Crown className="w-3 h-3 text-blue-600" />
+                <span>SARLAYASH MISSION • POWERED BY KAPIL</span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight pt-1">
+                Verified Quality Competency Badge
+              </h2>
+            </div>
+
+            {/* Badge Graphic */}
+            <div className="flex flex-col items-center justify-center my-4">
+              <div className={`w-24 h-24 rounded-3xl bg-gradient-to-tr ${selectedBadgeToExport.color} flex items-center justify-center text-white shadow-xl mb-3`}>
+                {React.createElement(ICON_MAP[selectedBadgeToExport.icon] || Award, { className: "w-12 h-12" })}
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight text-center">
+                {selectedBadgeToExport.name}
+              </h3>
+              <p className="text-xs font-bold text-blue-700 tracking-wide mt-0.5 text-center">
+                {selectedBadgeToExport.title}
+              </p>
+            </div>
+
+            {/* Description */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center my-4">
+              <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                {selectedBadgeToExport.description}
+              </p>
+            </div>
+
+            {/* Recipient Details & Footer */}
+            <div className="pt-4 border-t border-slate-200 flex items-end justify-between text-xs">
+              <div className="space-y-0.5">
+                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Conferred Upon</div>
+                <div className="font-black text-slate-900 text-sm">
+                  {user.name || "SarlaYash Certified Scholar"}
+                </div>
+                <div className="text-[10px] font-mono text-blue-700 font-bold">
+                  ID: {user.candidateId || "SY-QA-VERIFIED"}
+                </div>
+              </div>
+
+              <div className="text-right space-y-0.5">
+                <div className="font-serif italic text-base font-bold text-blue-900">Kapil</div>
+                <div className="text-[10px] font-bold text-slate-800">Kapil • Founder</div>
+                <div className="text-[9px] text-slate-400">sarlayash.github.io</div>
+              </div>
+            </div>
+
+          </div>
+        )}
       </div>
 
     </div>

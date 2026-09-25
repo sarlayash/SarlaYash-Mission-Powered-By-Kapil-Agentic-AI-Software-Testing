@@ -11,7 +11,8 @@ import {
   Sparkles, 
   Crown,
   Edit2,
-  ExternalLink
+  FileImage,
+  FileText
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -23,6 +24,7 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(user.name || "");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadType, setDownloadType] = useState("");
 
   if (!isOpen) return null;
 
@@ -31,7 +33,7 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
   const certId = finalExam?.certId || "SY-AAI-2026-88419";
   const issueDate = finalExam?.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const score = finalExam?.score || 95;
-  const displayName = user.name || "SarlaYash Certified QA Engineer";
+  const displayName = user.name || "SarlaYash Certified QA Professional";
 
   const handleSaveName = (e) => {
     e.preventDefault();
@@ -48,16 +50,18 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
   const handleDownloadPDF = async () => {
     if (!certRef.current) return;
     setIsDownloading(true);
+    setDownloadType("PDF");
     try {
       const canvas = await html2canvas(certRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'landscape',
-        unit: 'px',
+        unit: 'pt',
         format: [canvas.width, canvas.height]
       });
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
@@ -66,17 +70,20 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
       console.error("Certificate PDF download error:", err);
     } finally {
       setIsDownloading(false);
+      setDownloadType("");
     }
   };
 
   const handleDownloadImage = async () => {
     if (!certRef.current) return;
     setIsDownloading(true);
+    setDownloadType("PNG");
     try {
       const canvas = await html2canvas(certRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false
       });
       const link = document.createElement('a');
       link.download = `SarlaYash_Certificate_${displayName.replace(/\s+/g, '_')}.png`;
@@ -86,6 +93,7 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
       console.error("Certificate image download error:", err);
     } finally {
       setIsDownloading(false);
+      setDownloadType("");
     }
   };
 
@@ -100,19 +108,19 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn overflow-y-auto">
       <div className="relative w-full max-w-5xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden p-4 sm:p-6 my-auto">
         
-        {/* Top Control Bar */}
+        {/* Top Control Bar (Hidden during Print) */}
         <div className="no-print flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
           <div className="flex items-center gap-2">
             <span className="text-xs font-black px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1.5">
               <Award className="w-3.5 h-3.5 text-amber-600" />
-              <span>Verifiable Certificate</span>
+              <span>Verifiable Credential</span>
             </span>
             <span className="text-xs text-slate-500 font-mono hidden sm:inline">
               ID: <strong className="text-slate-800">{certId}</strong>
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setIsEditingName(!isEditingName)}
               className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
@@ -121,6 +129,27 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
               <span>Edit Name</span>
             </button>
 
+            {/* Download PDF Button */}
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isDownloading}
+              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-blue-600/20 transition"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>{isDownloading && downloadType === 'PDF' ? "Exporting PDF..." : "Download PDF"}</span>
+            </button>
+
+            {/* Download PNG Button */}
+            <button
+              onClick={handleDownloadImage}
+              disabled={isDownloading}
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition"
+            >
+              <FileImage className="w-3.5 h-3.5" />
+              <span>{isDownloading && downloadType === 'PNG' ? "Exporting PNG..." : "Download PNG"}</span>
+            </button>
+
+            {/* Print Button */}
             <button
               onClick={handlePrint}
               className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
@@ -129,15 +158,7 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
               <span>Print</span>
             </button>
 
-            <button
-              onClick={handleDownloadPDF}
-              disabled={isDownloading}
-              className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center gap-1.5 shadow-md shadow-blue-600/20 transition"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>{isDownloading ? "Preparing..." : "Download PDF"}</span>
-            </button>
-
+            {/* Verification Link Copy */}
             <button
               onClick={handleCopyVerification}
               className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
@@ -179,7 +200,7 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
           <div className="no-print mb-4 p-3 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-between gap-3 text-xs text-blue-900">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-blue-600" />
-              <span>Sign in with your real Google account to permanently link this certificate to your identity.</span>
+              <span>Sign in with your real Google account to permanently link this certificate to your verified identity.</span>
             </div>
             <button
               onClick={onOpenAuth}
@@ -200,11 +221,11 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
           <div className="absolute inset-3 border-2 border-amber-400/40 rounded-2xl pointer-events-none" />
           <div className="absolute inset-5 border border-blue-600/20 rounded-xl pointer-events-none" />
 
-          {/* Corner Badges */}
-          <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-blue-700" />
-          <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-blue-700" />
-          <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-blue-700" />
-          <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-blue-700" />
+          {/* Corner Flourishes */}
+          <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-blue-700 pointer-events-none" />
+          <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-blue-700 pointer-events-none" />
+          <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-blue-700 pointer-events-none" />
+          <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-blue-700 pointer-events-none" />
 
           {/* Content */}
           <div className="relative z-10 text-center space-y-4">
@@ -216,7 +237,7 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
                 <span>SARLAYASH MISSION • POWERED BY KAPIL</span>
                 <Crown className="w-3.5 h-3.5 text-blue-600" />
               </div>
-              <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-wide text-slate-900 uppercase pt-2">
+              <h1 className="text-2xl sm:text-4xl font-serif font-black tracking-wide text-slate-900 uppercase pt-2">
                 Certificate of Excellence & Completion
               </h1>
               <p className="text-[11px] text-slate-500 font-bold tracking-widest uppercase">
@@ -230,14 +251,14 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
                 {displayName}
               </div>
               <div className="text-xs text-blue-700 font-mono font-bold mt-2">
-                Candidate ID: {user.candidateId || "SY-QA-VERIFIED"} • Credential Verification Hash: {certId}
+                Candidate ID: {user.candidateId || "SY-QA-VERIFIED"} • Verification Hash: {certId}
               </div>
             </div>
 
             {/* Course Title & Syllabus */}
             <div className="max-w-2xl mx-auto space-y-1.5 text-xs text-slate-700">
               <p className="font-semibold text-slate-500">For successfully completing the comprehensive masterclass and practical assessments in:</p>
-              <div className="text-base sm:text-lg font-black text-blue-900 uppercase tracking-tight">
+              <div className="text-base sm:text-xl font-black text-blue-900 uppercase tracking-tight">
                 AGENTIC AI SOFTWARE TESTING USING AGILE TESTING PROCESS
               </div>
               <div className="text-xs sm:text-sm font-bold text-indigo-700">
@@ -257,19 +278,19 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
               ))}
             </div>
 
-            {/* Signatures & Seal */}
-            <div className="pt-6 grid grid-cols-3 items-end max-w-3xl mx-auto border-t border-slate-200">
+            {/* Signatures & Seal Section: Exclusively Kapil & SarlaYash Mission Governance */}
+            <div className="pt-6 grid grid-cols-1 sm:grid-cols-3 gap-6 items-end max-w-3xl mx-auto border-t border-slate-200">
               
-              {/* Signature 1 */}
-              <div className="text-left space-y-1">
-                <div className="font-serif italic text-lg text-blue-900 font-bold">Kapil</div>
-                <div className="h-0.5 w-32 bg-slate-400" />
-                <div className="text-xs font-bold text-slate-900">Kapil</div>
-                <div className="text-[10px] text-slate-500 font-semibold">Founder & Principal AI QA Architect</div>
-                <div className="text-[9px] text-slate-400">SarlaYash Mission</div>
+              {/* Authorized Signature: Kapil */}
+              <div className="text-center sm:text-left space-y-1">
+                <div className="font-serif italic text-2xl text-blue-900 font-black tracking-wide">Kapil</div>
+                <div className="h-0.5 w-36 mx-auto sm:mx-0 bg-slate-400" />
+                <div className="text-xs font-black text-slate-900">Kapil</div>
+                <div className="text-[10px] text-slate-600 font-bold">Founder & Principal AI QA Architect</div>
+                <div className="text-[9px] text-slate-400 uppercase tracking-wider">SarlaYash Mission</div>
               </div>
 
-              {/* Seal */}
+              {/* Center Official Crest Seal */}
               <div className="flex flex-col items-center justify-center">
                 <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 border-2 border-yellow-500 flex items-center justify-center text-slate-950 shadow-md">
                   <div className="w-12 h-12 rounded-full border border-dashed border-slate-900 flex flex-col items-center justify-center text-center p-1">
@@ -277,18 +298,26 @@ export default function CertificateModal({ isOpen, onClose, onOpenFinalExam, onO
                     <span className="text-[8px] font-black uppercase">OFFICIAL</span>
                   </div>
                 </div>
-                <div className="text-[9px] font-mono text-amber-700 mt-1 font-bold">
+                <div className="text-[9px] font-mono text-amber-700 mt-1 font-black">
                   GRADE: {score}% PASS
                 </div>
               </div>
 
-              {/* Signature 2 */}
-              <div className="text-right space-y-1 flex flex-col items-end">
-                <div className="font-serif italic text-lg text-blue-900 font-bold">Dr. Yashoda S.</div>
-                <div className="h-0.5 w-32 bg-slate-400" />
-                <div className="text-xs font-bold text-slate-900">Dr. Yashoda Sharma</div>
-                <div className="text-[10px] text-slate-500 font-semibold">Director of Academic Excellence</div>
-                <div className="text-[9px] text-slate-400">Issued: {issueDate}</div>
+              {/* Official Credential Verification Block */}
+              <div className="text-center sm:text-right space-y-1">
+                <div className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                  SarlaYash Quality Council
+                </div>
+                <div className="h-0.5 w-36 mx-auto sm:ml-auto sm:mr-0 bg-slate-400" />
+                <div className="text-[10px] text-slate-600 font-bold">
+                  Date of Issuance: {issueDate}
+                </div>
+                <div className="text-[9px] text-blue-700 font-mono font-bold">
+                  Verified Credential Hash: {certId}
+                </div>
+                <div className="text-[9px] text-slate-400">
+                  sarlayash.github.io
+                </div>
               </div>
 
             </div>
