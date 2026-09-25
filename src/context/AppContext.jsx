@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { BADGES_DATA } from '../data/badgesData';
 import { COURSE_MODULES } from '../data/courseData';
 import { IDE_FILES } from '../data/ideChallenges';
+import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
 
 const AppContext = createContext();
 
@@ -11,18 +12,18 @@ const STORAGE_KEY_PROGRESS = 'sarlayash_qa_progress';
 const STORAGE_KEY_IDE = 'sarlayash_qa_ide_code';
 
 export function AppProvider({ children }) {
-  // 1. Real User Authentication (No fake accounts)
+  // 1. User Authentication (Firebase Real Google Auth)
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEY_USER);
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { /* ignore */ }
     }
-    // Default logged out guest state requiring real Google sign in
     return {
+      uid: null,
       name: "",
       email: "",
       avatar: "",
-      role: "QA Engineer / Learner",
+      role: "Agentic QA Professional",
       authProvider: null,
       candidateId: null,
       xp: 0,
@@ -31,6 +32,53 @@ export function AppProvider({ children }) {
       isLoggedIn: false
     };
   });
+
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Listen to Firebase Real Auth state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const candidateId = "SY-QA-" + firebaseUser.uid.slice(-6).toUpperCase();
+        const realUserData = {
+          uid: firebaseUser.uid,
+          name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || "QA Scholar",
+          email: firebaseUser.email || "",
+          avatar: firebaseUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(firebaseUser.displayName || 'QA')}`,
+          role: "Agentic QA Software Testing Professional",
+          authProvider: "google",
+          candidateId: candidateId,
+          xp: user.xp > 0 ? user.xp : 300,
+          streakDays: user.streakDays || 1,
+          joinedDate: user.joinedDate || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          isLoggedIn: true
+        };
+        setUser(realUserData);
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(realUserData));
+      } else {
+        // If not authenticated via Firebase
+        const saved = localStorage.getItem(STORAGE_KEY_USER);
+        if (!saved) {
+          setUser({
+            uid: null,
+            name: "",
+            email: "",
+            avatar: "",
+            role: "Agentic QA Professional",
+            authProvider: null,
+            candidateId: null,
+            xp: 0,
+            streakDays: 1,
+            joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            isLoggedIn: false
+          });
+        }
+      }
+      setAuthLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // 2. Learning Progress & Module Completion
   const [progress, setProgress] = useState(() => {
@@ -62,12 +110,10 @@ export function AppProvider({ children }) {
 
   const [activeFileId, setActiveFileId] = useState(IDE_FILES[0].id);
 
-  // Sync state to LocalStorage
+  // Sync to LocalStorage
   useEffect(() => {
     if (user && user.isLoggedIn) {
       localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(STORAGE_KEY_USER);
     }
   }, [user]);
 
@@ -79,31 +125,48 @@ export function AppProvider({ children }) {
     localStorage.setItem(STORAGE_KEY_IDE, JSON.stringify(ideCodeMap));
   }, [ideCodeMap]);
 
-  // Real Google Sign-In Handler
-  const handleRealGoogleSignIn = ({ name, email, avatar, sub }) => {
-    const candidateId = "SY-QA-" + (sub ? sub.slice(-6).toUpperCase() : Math.floor(100000 + Math.random() * 900000));
-    const realUser = {
-      name: name || email.split('@')[0],
-      email: email,
-      avatar: avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || email)}`,
-      role: "Agentic QA Software Testing Professional",
-      authProvider: "google",
-      candidateId: candidateId,
-      xp: user.xp > 0 ? user.xp : 250,
-      streakDays: user.streakDays || 1,
-      joinedDate: user.joinedDate || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      isLoggedIn: true
-    };
-    setUser(realUser);
-    triggerCelebration();
+  // Real Google Sign-In with Firebase Popup
+  const signInWithGoogleFirebase = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const fbUser = result.user;
+      const candidateId = "SY-QA-" + fbUser.uid.slice(-6).toUpperCase();
+      const realUserData = {
+        uid: fbUser.uid,
+        name: fbUser.displayName || fbUser.email?.split('@')[0] || "QA Scholar",
+        email: fbUser.email || "",
+        avatar: fbUser.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fbUser.displayName || 'QA')}`,
+        role: "Agentic QA Software Testing Professional",
+        authProvider: "google",
+        candidateId: candidateId,
+        xp: user.xp > 0 ? user.xp : 300,
+        streakDays: user.streakDays || 1,
+        joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        isLoggedIn: true
+      };
+      setUser(realUserData);
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(realUserData));
+      triggerCelebration();
+      return { success: true, user: realUserData };
+    } catch (error) {
+      console.error("Firebase Google Sign-In Error:", error);
+      return { success: false, error: error.message };
+    }
   };
 
-  const logout = () => {
+  // Sign out
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      // ignore
+    }
     setUser({
+      uid: null,
       name: "",
       email: "",
       avatar: "",
-      role: "QA Engineer / Learner",
+      role: "Agentic QA Professional",
       authProvider: null,
       candidateId: null,
       xp: 0,
@@ -122,7 +185,7 @@ export function AppProvider({ children }) {
     }));
   };
 
-  // Trigger Confetti Celebration
+  // Confetti Celebration
   const triggerCelebration = () => {
     try {
       confetti({
@@ -211,7 +274,7 @@ export function AppProvider({ children }) {
         title: "AGENTIC AI SOFTWARE TESTING USING AGILE TESTING PROCESS",
         subtitle: "Real-Time ERP Product Testing with Agentic AI",
         mission: "SarlaYash Mission Powered By Kapil",
-        verificationUrl: `https://sarlayash.github.io/SarlaYash-Mission-Powered-By-Kapil-Agentic-AI-Software-Testing/verify/${certId}`
+        verificationUrl: `https://sarlayash.github.io/SarlaYash-Mission-Powered-By-Kapil-Agentic-AI-Software-Testing/#verify=${certId}`
       };
 
       setProgress(prev => ({
@@ -265,7 +328,8 @@ export function AppProvider({ children }) {
       value={{
         user,
         setUser,
-        handleRealGoogleSignIn,
+        authLoading,
+        signInWithGoogleFirebase,
         logout,
         addXP,
         progress,
