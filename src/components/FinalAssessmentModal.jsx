@@ -160,7 +160,9 @@ export default function FinalAssessmentModal({ isOpen, onClose, onOpenCertificat
               </div>
 
               <h3 className="text-3xl font-black text-slate-900">
-                {examResult.passed ? "CERTIFICATION EARNED!" : "EXAM ATTEMPT COMPLETED"}
+                {examResult.passed 
+                  ? (progress.completedModules.length >= 14 ? "CERTIFICATION EARNED!" : "ASSESSMENT PASSED (≥80%)") 
+                  : "EXAM ATTEMPT COMPLETED"}
               </h3>
 
               <div className="text-5xl font-black text-amber-600 font-mono tracking-tight">
@@ -169,28 +171,56 @@ export default function FinalAssessmentModal({ isOpen, onClose, onOpenCertificat
 
               <p className="text-sm text-slate-700 max-w-md mx-auto leading-relaxed">
                 {examResult.passed ? (
-                  <>
-                    Outstanding work! You scored <strong>{examResult.correctCount} of {examResult.total}</strong> correct and unlocked the official <strong className="text-blue-700 font-bold">Certified Agentic QA Lead</strong> credential under SarlaYash Mission Powered By Kapil.
-                  </>
+                  progress.completedModules.length >= 14 ? (
+                    <>
+                      Outstanding work! You scored <strong>{examResult.correctCount} of {examResult.total}</strong> ({examResult.score}%) and completed all 14 curriculum modules. Your official <strong className="text-blue-700 font-bold">Certificate & Badges</strong> are fully unlocked for PNG & PDF download!
+                    </>
+                  ) : (
+                    <>
+                      Congratulations on achieving <strong>{examResult.score}%</strong> (≥80% passing grade)! <br className="hidden sm:inline" />
+                      <span className="text-amber-800 font-bold">Important Notice:</span> Your Certificate and Badges remain locked until all 14 modules are completed (Currently <strong>{progress.completedModules.length} of 14</strong> done). Complete the remaining {14 - progress.completedModules.length} module(s) to unlock and download!
+                    </>
+                  )
                 ) : (
                   <>
-                    You scored <strong>{examResult.correctCount} of {examResult.total}</strong>. A minimum score of <strong>80%</strong> is required for official certification. Review the explanations below and retake!
+                    You scored <strong>{examResult.correctCount} of {examResult.total}</strong> ({examResult.score}%). A minimum score of <strong>80%</strong> is required for official certification. Review the explanations below and retake!
                   </>
                 )}
               </p>
 
               {examResult.passed && (
-                <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onOpenCertificate();
-                    }}
-                    className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 flex items-center gap-2 transition"
-                  >
-                    <Award className="w-5 h-5" />
-                    <span>View & Download Certificate of Completion</span>
-                  </button>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+                  {progress.completedModules.length >= 14 ? (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onOpenCertificate();
+                      }}
+                      className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/25 flex items-center gap-2 transition"
+                    >
+                      <Award className="w-5 h-5" />
+                      <span>Download Certificate & Badges (PNG / PDF)</span>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={onClose}
+                        className="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-black text-sm shadow-lg shadow-blue-600/25 flex items-center gap-2 transition"
+                      >
+                        <Award className="w-5 h-5" />
+                        <span>Resume Modules ({14 - progress.completedModules.length} Remaining)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onClose();
+                          onOpenCertificate();
+                        }}
+                        className="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+                      >
+                        <span>View Eligibility Status</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

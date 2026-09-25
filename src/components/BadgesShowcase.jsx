@@ -42,7 +42,17 @@ const ICON_MAP = {
 };
 
 export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
-  const { progress, user } = useApp();
+  const { 
+    progress, 
+    user, 
+    isEligibleForCertification, 
+    isAllModulesCompleted, 
+    completedModulesCount, 
+    totalModules, 
+    finalExamScore, 
+    isFinalExamPassed 
+  } = useApp();
+
   const [filter, setFilter] = useState('all');
   const [downloadingBadgeId, setDownloadingBadgeId] = useState(null);
   const [downloadType, setDownloadType] = useState("");
@@ -51,10 +61,11 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
 
   const unlockedSet = new Set(progress.unlockedBadgeIds);
   const totalBadges = BADGES_DATA.length;
-  const unlockedCount = unlockedSet.size;
+  // Badges only unlock for official download once eligibility (14 modules + 80% score) is achieved
+  const unlockedCount = isEligibleForCertification ? totalBadges : 0;
 
   const filteredBadges = BADGES_DATA.filter(b => {
-    const isUnlocked = unlockedSet.has(b.id);
+    const isUnlocked = isEligibleForCertification;
     if (filter === 'unlocked') return isUnlocked;
     if (filter === 'locked') return !isUnlocked;
     return true;
@@ -62,6 +73,10 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
 
   // Download Individual Badge as PNG
   const handleDownloadBadgePNG = async (badge) => {
+    if (!isEligibleForCertification) {
+      alert("Badges remain locked until you complete all 14 modules and score 80%+ on the assessments.");
+      return;
+    }
     setSelectedBadgeToExport(badge);
     setDownloadingBadgeId(badge.id);
     setDownloadType("PNG");
@@ -90,6 +105,10 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
 
   // Download Individual Badge as PDF
   const handleDownloadBadgePDF = async (badge) => {
+    if (!isEligibleForCertification) {
+      alert("Badges remain locked until you complete all 14 modules and score 80%+ on the assessments.");
+      return;
+    }
     setSelectedBadgeToExport(badge);
     setDownloadingBadgeId(badge.id);
     setDownloadType("PDF");
@@ -122,12 +141,12 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
 
   // Download All Unlocked Badges as a Portfolio PDF
   const handleDownloadPortfolioPDF = async () => {
-    const unlockedBadges = BADGES_DATA.filter(b => unlockedSet.has(b.id));
-    if (unlockedBadges.length === 0) {
-      alert("Complete modules or assessments first to unlock badges before exporting your portfolio!");
+    if (!isEligibleForCertification) {
+      alert("Complete all 14 modules and score 80%+ on the assessment to unlock and download your credentials portfolio!");
       return;
     }
 
+    const unlockedBadges = BADGES_DATA;
     setDownloadingBadgeId("ALL");
     setDownloadType("PORTFOLIO");
 
@@ -183,23 +202,29 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
             <span>SarlaYash Mission Credentials</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight heading-gradient-sunset">
-            Quality Badges & Milestones
+            Quality Badges & Honors
           </h1>
           <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-            Every badge in the SarlaYash Mission represents verified enterprise STLC competency. You can download any earned badge individually as a <strong>PNG</strong> or <strong>PDF</strong>, or download your entire credentials portfolio!
+            Every badge in the SarlaYash Mission represents verified enterprise STLC competency. Badges remain <strong>locked</strong> until you complete the eligibility requirement (all 14 modules + 80%+ assessment score), after which they can be downloaded as <strong>PNG</strong>, <strong>PDF</strong>, or a full <strong>Credentials Portfolio</strong>!
           </p>
         </div>
 
         {/* Badges Counter & Portfolio CTA */}
         <div className="flex flex-col sm:flex-row items-center gap-4 bg-white border border-slate-200 p-4 rounded-2xl shadow-xs shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-400 to-yellow-300 flex items-center justify-center text-slate-950 font-black text-xl shadow-xs shrink-0">
-              {unlockedCount}/{totalBadges}
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-xl shadow-xs shrink-0 ${
+              isEligibleForCertification 
+                ? 'bg-gradient-to-tr from-amber-400 to-yellow-300 text-slate-950' 
+                : 'bg-slate-100 text-slate-400 border border-slate-200'
+            }`}>
+              {isEligibleForCertification ? `${totalBadges}/${totalBadges}` : `0/${totalBadges}`}
             </div>
             <div>
-              <div className="text-sm font-black text-slate-900">Badges Unlocked</div>
+              <div className="text-sm font-black text-slate-900">
+                {isEligibleForCertification ? "Badges Unlocked" : "Badges Locked"}
+              </div>
               <div className="text-xs text-amber-700 font-mono font-bold">
-                {Math.round((unlockedCount / totalBadges) * 100)}% Milestone Progress
+                {isEligibleForCertification ? "100% Eligible & Verified" : "Eligibility Criteria Incomplete"}
               </div>
               <div className="text-[11px] text-slate-500 mt-0.5">
                 Candidate: <strong className="text-slate-800">{user.name || "Guest Scholar"}</strong>
@@ -207,7 +232,7 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
             </div>
           </div>
 
-          {unlockedCount > 0 && (
+          {isEligibleForCertification ? (
             <button
               onClick={handleDownloadPortfolioPDF}
               disabled={downloadingBadgeId === 'ALL'}
@@ -216,9 +241,92 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
               <Download className="w-4 h-4" />
               <span>{downloadingBadgeId === 'ALL' ? "Compiling Portfolio..." : "Download Badges Portfolio (PDF)"}</span>
             </button>
+          ) : (
+            <div className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-400 text-xs font-bold flex items-center gap-1.5 cursor-not-allowed">
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              <span>Portfolio Locked</span>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Mandatory Governance Status Banner */}
+      {!isEligibleForCertification ? (
+        <div className="p-5 sm:p-6 rounded-3xl bg-amber-50/80 border-2 border-amber-300 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-amber-100 rounded-2xl border border-amber-300 text-amber-800 shrink-0 mt-1">
+              <Lock className="w-6 h-6 text-amber-700" />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+                  CREDENTIAL LOCK ACTIVE
+                </span>
+                <span className="text-xs font-black text-slate-900">
+                  Badges Remain Locked Until 100% Modules & 80%+ Assessment Score
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
+                Under SarlaYash Mission governance, badges cannot be downloaded individually or as a portfolio until both prerequisites below are completed:
+              </p>
+              
+              {/* Progress Checklist */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div className={`p-2.5 rounded-xl border text-xs flex items-center gap-2.5 ${
+                  isAllModulesCompleted ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold' : 'bg-white border-amber-200 text-slate-700'
+                }`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                    isAllModulesCompleted ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {isAllModulesCompleted ? "✓" : "1"}
+                  </span>
+                  <span><strong>14 Modules:</strong> {completedModulesCount}/14 Completed ({Math.round((completedModulesCount/14)*100)}%)</span>
+                </div>
+
+                <div className={`p-2.5 rounded-xl border text-xs flex items-center gap-2.5 ${
+                  isFinalExamPassed ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold' : 'bg-white border-amber-200 text-slate-700'
+                }`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
+                    isFinalExamPassed ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {isFinalExamPassed ? "✓" : "2"}
+                  </span>
+                  <span><strong>Assessment Score:</strong> {progress.finalExam ? `${progress.finalExam.score}% (Need 80%+)` : "Not Attempted (Need 80%+)"}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end lg:self-center">
+            <button
+              onClick={onOpenFinalExam}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-600 hover:to-yellow-500 text-slate-950 text-xs font-black transition shadow-xs flex items-center gap-1.5"
+            >
+              <Crown className="w-3.5 h-3.5 text-slate-950" />
+              <span>{progress.finalExam ? "Retake Exam for 80%+" : "Take 30-Min Exam Now"}</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-5 sm:p-6 rounded-3xl bg-emerald-50 border-2 border-emerald-300 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 bg-emerald-100 rounded-2xl border border-emerald-300 text-emerald-800">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                ELIGIBILITY VERIFIED & CRITERIA MET
+              </span>
+              <h3 className="text-base font-black text-slate-900 mt-1">
+                All 14 Modules Completed • Assessment Score: {finalExamScore}% PASS
+              </h3>
+              <p className="text-xs text-slate-600 mt-0.5">
+                All badges and portfolio downloads are unlocked. You may download each badge as PNG or PDF below!
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-4">
@@ -257,7 +365,7 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
       {/* Badges Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredBadges.map((badge) => {
-          const isUnlocked = unlockedSet.has(badge.id);
+          const isUnlocked = isEligibleForCertification;
           const IconComp = ICON_MAP[badge.icon] || Award;
           const isThisDownloading = downloadingBadgeId === badge.id;
 
@@ -267,7 +375,7 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
               className={`relative rounded-3xl border p-6 transition flex flex-col justify-between ${
                 isUnlocked
                   ? 'bg-white border-blue-200 shadow-md hover:shadow-lg'
-                  : 'bg-slate-50 border-slate-200 opacity-60'
+                  : 'bg-slate-50 border-slate-200 opacity-75'
               }`}
             >
               <div>
@@ -335,18 +443,22 @@ export default function BadgesShowcase({ onOpenFinalExam, onOpenIDE }) {
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2">
+                    <div className="w-full py-1.5 px-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 text-[11px] font-bold flex items-center justify-center gap-1.5 select-none">
+                      <Lock className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Locked • 14 Modules & 80%+ Required</span>
+                    </div>
                     {badge.id === 'badge_certified_lead' ? (
                       <button
                         onClick={onOpenFinalExam}
-                        className="w-full py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold border border-amber-300 transition"
+                        className="w-full py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-[11px] font-bold border border-amber-300 transition"
                       >
-                        Take Certification Exam
+                        Take 30-Min Exam Now
                       </button>
                     ) : (
                       <button
                         onClick={onOpenIDE}
-                        className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition"
+                        className="w-full py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition"
                       >
                         Practice in IDE
                       </button>

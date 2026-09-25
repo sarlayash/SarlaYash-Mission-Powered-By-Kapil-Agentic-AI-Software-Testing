@@ -21,7 +21,8 @@ import {
   ChevronUp,
   Sparkles,
   ExternalLink,
-  Code2
+  Code2,
+  Lock
 } from 'lucide-react';
 
 export default function LeftSidebar({
@@ -38,7 +39,7 @@ export default function LeftSidebar({
   onOpenFinalExam,
   onOpenCertificate
 }) {
-  const { user, progress } = useApp();
+  const { user, progress, isEligibleForCertification } = useApp();
   const [showFilters, setShowFilters] = useState(true);
   const [showModuleJump, setShowModuleJump] = useState(false);
 
@@ -47,8 +48,21 @@ export default function LeftSidebar({
     { id: 'ide', label: 'Real Practice IDE', icon: Terminal, badge: 'Agents Live', color: 'text-emerald-600' },
     { id: 'mocks', label: 'Mock Assessments', icon: CheckSquare, badge: 'Timed', color: 'text-purple-600' },
     { id: 'erp', label: 'ERP Sandbox (O2C/P2P)', icon: Database, badge: 'Interactive', color: 'text-cyan-600' },
-    { id: 'badges', label: 'Badges & Milestones', icon: Award, count: progress.unlockedBadgeIds.length, color: 'text-amber-600' },
-    { id: 'certificate', label: 'Verified Certificate', icon: Crown, color: 'text-yellow-600', isSpecial: true }
+    { 
+      id: 'badges', 
+      label: 'Badges & Honors', 
+      icon: isEligibleForCertification ? Award : Lock, 
+      badge: isEligibleForCertification ? '12 Unlocked' : 'Locked', 
+      color: isEligibleForCertification ? 'text-amber-600' : 'text-slate-400' 
+    },
+    { 
+      id: 'certificate', 
+      label: 'Verified Certificate', 
+      icon: isEligibleForCertification ? Crown : Lock, 
+      badge: isEligibleForCertification ? 'Ready' : 'Locked', 
+      color: isEligibleForCertification ? 'text-yellow-600' : 'text-slate-400', 
+      isSpecial: true 
+    }
   ];
 
   const completedCount = progress.completedModules.length;

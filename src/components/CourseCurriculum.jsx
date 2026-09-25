@@ -19,7 +19,8 @@ import {
   Cpu,
   Brain,
   SlidersHorizontal,
-  Crown
+  Crown,
+  Lock
 } from 'lucide-react';
 
 export default function CourseCurriculum({ 
@@ -30,7 +31,7 @@ export default function CourseCurriculum({
   selectedLevel = "all",
   selectedStatus = "all"
 }) {
-  const { progress, markModuleComplete } = useApp();
+  const { progress, markModuleComplete, isEligibleForCertification, isFinalExamPassed } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedModuleId, setExpandedModuleId] = useState(1);
   const [showAllSubtopics, setShowAllSubtopics] = useState(false);
@@ -118,7 +119,7 @@ export default function CourseCurriculum({
               className="px-6 py-3 rounded-xl bg-white hover:bg-amber-50 text-amber-800 font-bold text-xs sm:text-sm border-2 border-amber-300 shadow-xs flex items-center gap-2 transition"
             >
               <Crown className="w-4 h-4 text-amber-500" />
-              <span>Take 30-Min Certification Exam</span>
+              <span>Take 30-Min Certification Exam (80% to Pass)</span>
             </button>
           </div>
         </div>
@@ -169,6 +170,44 @@ export default function CourseCurriculum({
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>{showAllSubtopics ? "Collapse All" : "Expand All"}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Credential Governance Milestone Bar */}
+      <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs ${
+        isEligibleForCertification
+          ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+          : 'bg-amber-50/70 border-amber-200 text-amber-950'
+      }`}>
+        <div className="flex items-center gap-2.5">
+          {isEligibleForCertification ? (
+            <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+          ) : (
+            <Lock className="w-5 h-5 text-amber-600 shrink-0" />
+          )}
+          <div>
+            <strong className="font-black">
+              {isEligibleForCertification 
+                ? "Academic Credentials Unlocked!" 
+                : "Certificate & Badges Lock Governance:"}
+            </strong>{" "}
+            {isEligibleForCertification 
+              ? "All 14 modules completed and 80%+ assessment score achieved. Your official Certificate & Badges are ready to download (PNG/PDF)." 
+              : "Complete all 14 modules and score 80%+ on the final assessment to unlock official Certificate and Badges for download."}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+            completedCount === totalCount ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+          }`}>
+            Modules: {completedCount}/{totalCount}
+          </span>
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+            isFinalExamPassed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
+          }`}>
+            Exam: {progress.finalExam ? `${progress.finalExam.score}%` : "Pending (≥80%)"}
+          </span>
         </div>
       </div>
 

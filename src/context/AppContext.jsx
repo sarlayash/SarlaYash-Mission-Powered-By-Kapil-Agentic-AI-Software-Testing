@@ -198,6 +198,14 @@ export function AppProvider({ children }) {
     }
   };
 
+  // Eligibility Calculation: Complete all 14 modules AND score >= 80% on assessment
+  const totalModules = COURSE_MODULES.length; // 14
+  const completedModulesCount = progress.completedModules.length;
+  const isAllModulesCompleted = completedModulesCount >= totalModules;
+  const finalExamScore = progress.finalExam?.score || 0;
+  const isFinalExamPassed = Boolean(progress.finalExam?.passed && finalExamScore >= 80);
+  const isEligibleForCertification = isAllModulesCompleted && isFinalExamPassed;
+
   // Mark Module Complete
   const markModuleComplete = (moduleId) => {
     if (!progress.completedModules.includes(moduleId)) {
@@ -218,10 +226,40 @@ export function AppProvider({ children }) {
         addXP(2500);
       }
 
+      // Check if both criteria are now met (14 modules completed + 80% exam passed)
+      const examAlreadyPassed = Boolean(progress.finalExam?.passed && progress.finalExam?.score >= 80);
+      let updatedCertificates = progress.certificates || [];
+      if (updated.length === COURSE_MODULES.length && examAlreadyPassed) {
+        if (!newBadges.includes("badge_certified_lead")) {
+          newBadges.push("badge_certified_lead");
+        }
+        const certId = progress.finalExam?.certId || `SY-AAI-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+        const issueDate = progress.finalExam?.date || new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        const studentName = user.name || "SarlaYash Certified Scholar";
+        const newCert = {
+          id: certId,
+          studentName: studentName,
+          candidateId: user.candidateId || ("SY-QA-" + Math.floor(100000 + Math.random() * 900000)),
+          score: progress.finalExam.score,
+          issueDate: issueDate,
+          title: "AGENTIC AI SOFTWARE TESTING USING AGILE TESTING PROCESS",
+          subtitle: "Real-Time ERP Product Testing with Agentic AI",
+          mission: "SarlaYash Mission Powered By Kapil",
+          verificationUrl: `https://sarlayash.github.io/SarlaYash-Mission-Powered-By-Kapil-Agentic-AI-Software-Testing/#verify=${certId}`
+        };
+        updatedCertificates = [newCert, ...updatedCertificates.filter(c => c.id !== certId)];
+        triggerCelebration();
+      }
+
       setProgress(prev => ({
         ...prev,
         completedModules: updated,
-        unlockedBadgeIds: newBadges
+        unlockedBadgeIds: newBadges,
+        certificates: updatedCertificates
       }));
 
       triggerCelebration();
@@ -247,7 +285,7 @@ export function AppProvider({ children }) {
     });
   };
 
-  // Submit Final Exam & Generate Certificate
+  // Submit Final Exam & Generate Certificate (Only if 80%+ and all 14 modules completed)
   const submitFinalAssessment = (score) => {
     const passed = score >= 80;
     const certId = `SY-AAI-2026-${Math.floor(10000 + Math.random() * 90000)}`;
@@ -258,11 +296,17 @@ export function AppProvider({ children }) {
     });
 
     const studentName = user.name || "SarlaYash Certified Scholar";
+    const modulesAlreadyDone = progress.completedModules.length >= COURSE_MODULES.length;
 
     if (passed) {
       const newBadges = [...progress.unlockedBadgeIds];
-      if (!newBadges.includes("badge_certified_lead")) {
-        newBadges.push("badge_certified_lead");
+      if (modulesAlreadyDone) {
+        if (!newBadges.includes("badge_certified_lead")) {
+          newBadges.push("badge_certified_lead");
+        }
+        if (!newBadges.includes("badge_full_stlc")) {
+          newBadges.push("badge_full_stlc");
+        }
       }
 
       const newCert = {
@@ -281,7 +325,7 @@ export function AppProvider({ children }) {
         ...prev,
         finalExam: { score, passed, date: issueDate, certId },
         unlockedBadgeIds: newBadges,
-        certificates: [newCert, ...prev.certificates.filter(c => c.id !== certId)]
+        certificates: modulesAlreadyDone ? [newCert, ...prev.certificates.filter(c => c.id !== certId)] : prev.certificates
       }));
 
       addXP(3000);
@@ -293,7 +337,7 @@ export function AppProvider({ children }) {
       }));
     }
 
-    return { passed, score, certId };
+    return { passed, score, certId, modulesCompleted: modulesAlreadyDone };
   };
 
   // Update IDE code
@@ -341,7 +385,13 @@ export function AppProvider({ children }) {
         activeFileId,
         setActiveFileId,
         resetProgress,
-        triggerCelebration
+        triggerCelebration,
+        totalModules,
+        completedModulesCount,
+        isAllModulesCompleted,
+        finalExamScore,
+        isFinalExamPassed,
+        isEligibleForCertification
       }}
     >
       {children}

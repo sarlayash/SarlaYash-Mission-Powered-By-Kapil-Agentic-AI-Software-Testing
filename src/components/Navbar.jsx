@@ -10,7 +10,8 @@ import {
   User, 
   Search, 
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 
 export default function Navbar({
@@ -22,7 +23,7 @@ export default function Navbar({
   onOpenFinalExam,
   onOpenCertificate
 }) {
-  const { user } = useApp();
+  const { user, isEligibleForCertification } = useApp();
 
   return (
     <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
@@ -87,10 +88,23 @@ export default function Navbar({
 
           <button
             onClick={onOpenCertificate}
-            className="px-3 py-1.5 rounded-full text-xs font-bold text-amber-700 hover:bg-amber-50 border border-amber-200 transition flex items-center gap-1"
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5 ${
+              isEligibleForCertification
+                ? 'text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100 border border-slate-200'
+            }`}
           >
-            <Crown className="w-3.5 h-3.5 text-amber-500" />
+            {isEligibleForCertification ? (
+              <Crown className="w-3.5 h-3.5 text-amber-500" />
+            ) : (
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
+            )}
             <span>Certificate</span>
+            {!isEligibleForCertification && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-mono font-bold">
+                Locked
+              </span>
+            )}
           </button>
         </div>
 
